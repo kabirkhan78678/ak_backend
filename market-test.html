@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Market Socket Test</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background: #0f172a;
+        color: #e5e7eb;
+        padding: 20px;
+      }
+      h2 {
+        margin-top: 30px;
+        color: #38bdf8;
+      }
+      .box {
+        background: #020617;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+      }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 1px solid #1e293b;
+        padding: 6px 0;
+      }
+      .green {
+        color: #22c55e;
+      }
+      .red {
+        color: #ef4444;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>📡 Market Realtime Test</h1>
+
+    <div class="box">
+      <h2>📊 Watchlist (Price Update)</h2>
+      <div id="watchlist"></div>
+    </div>
+
+    <div class="box">
+      <h2>💼 Portfolio (PnL Update)</h2>
+      <div id="portfolio"></div>
+    </div>
+
+    <script>
+      const socket = io("http://192.168.1.7:8000", {
+        transports: ["websocket"],
+      });
+
+      /* ======================
+     WATCHLIST SYMBOLS
+  ====================== */
+      const watchSymbols = ["FOREX:EURUSD", "BINANCE:BTCUSDT", "AAPL"];
+
+      const watchEl = document.getElementById("watchlist");
+      const portfolioEl = document.getElementById("portfolio");
+
+      socket.on("connect", () => {
+        console.log("🟢 Connected:", socket.id);
+
+        // Join watchlist rooms
+        socket.emit("join_watchlist", watchSymbols);
+
+        // Join portfolio room (TEST USER ID = 1)
+        socket.emit("join_portfolio", 10);
+      });
+
+      /* ======================
+     WATCHLIST PRICE UPDATE
+  ====================== */
+      socket.on("price_update", (data) => {
+        const id = data.symbol.replace(/[:]/g, "_");
+
+        let row = document.getElementById(id);
+        if (!row) {
+          row = document.createElement("div");
+          row.id = id;
+          row.className = "row";
+          row.innerHTML = `
+        <span>${data.symbol}</span>
+        <span id="${id}_price"></span>
+      `;
+          watchEl.appendChild(row);
+        }
+
+        document.getElementById(`${id}_price`).innerText = Number(
+          data.price
+        ).toFixed(5);
+      });
+
+      /* ======================
+     PORTFOLIO UPDATE
+  ====================== */
+      socket.on("portfolio_update", (data) => {
+        const id = "p_" + data.asset_id;
+
+        let row = document.getElementById(id);
+        if (!row) {
+          row = document.createElement("div");
+          row.id = id;
+          row.className = "row";
+          row.innerHTML = `
+        <span>${data.symbol}</span>
+        <span id="${id}_pnl"></span>
+      `;
+          portfolioEl.appendChild(row);
+        }
+
+        const pnlEl = document.getElementById(`${id}_pnl`);
+        pnlEl.innerText = data.pnl.toFixed(2);
+
+        pnlEl.className = data.pnl >= 0 ? "green" : "red";
+      });
+    </script>
+  </body>
+</html>
